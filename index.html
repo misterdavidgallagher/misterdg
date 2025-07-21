@@ -45,7 +45,7 @@
             gap: 20px;
             align-items: start;
             min-height: 100vh;
-            padding: 50px 20px 40px 55px;
+            padding: 50px 20px 50px 55px;
             box-sizing: border-box;
         }
         
@@ -53,14 +53,14 @@
             display: grid;
             grid-template-rows: auto auto auto;
             gap: 100px;
-            min-height: calc(100vh - 140px);
+            min-height: calc(100vh - 100px);
         }
         
         .right-column {
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: calc(100vh - 140px);
+            min-height: calc(100vh - 100px);
             text-align: left;
             width: min(calc(50vw - 75px), 200px);
             max-width: calc(50vw - 75px);
@@ -71,14 +71,15 @@
         }
         
         .social {
-            position: fixed;
-            bottom: 30px;
             color: #FFFFFF80;
-            
         }
         
         .social div {
             margin-bottom: 0.5rem;
+        }
+        
+        .social div:last-child {
+            margin-bottom: 0;
         }
         
         @media (max-width: 1024px) {
