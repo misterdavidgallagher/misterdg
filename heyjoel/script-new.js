@@ -22,6 +22,8 @@ class AudioWordSync {
         
         // End message system
         this.endMessageAnimation = null; // Track end message Lottie animation
+        this.preloadedOnwardLottie = null; // Preloaded Lottie JSON data
+        this.isOnwardLottieReady = false; // Track if Lottie data is loaded
         
         // Pre-loading system
         this.imageCache = new Map(); // Cache which words have images
@@ -155,12 +157,69 @@ class AudioWordSync {
             console.log('✅ Everything ready - enabling play button');
             this.hasFiles = true;
             this.playBtn.disabled = false;
-            this.wordDisplay.textContent = 'Hey';
-            this.calculateOptimalFontSize('Hey');
+            
+            // Animate from static HTML "Hey" to properly sized "Hey"
+            this.animateInitialHey();
             this.isInitialState = true;
         } else {
             console.log('❌ Files not ready yet');
         }
+    }
+    
+    animateInitialHey() {
+        console.log('🎬 Starting Safari-compatible transform animation for initial Hey');
+        
+        // Ensure the content is "Hey" (it should be from HTML)
+        if (this.wordDisplay.textContent !== 'Hey') {
+            this.wordDisplay.textContent = 'Hey';
+        }
+        
+        // Calculate and apply the target font size immediately (no animation for font-size)
+        const targetFontSize = this.calculateTargetFontSize('Hey');
+        this.wordDisplay.style.fontSize = targetFontSize + 'px';
+        console.log(`📏 Set Hey font size to ${targetFontSize}px (no animation)`);
+        
+        // Add animation class to enable smooth transform transition
+        this.wordDisplay.classList.add('initial-hey-animation');
+        
+        // Add a small delay to ensure CSS transitions are ready
+        setTimeout(() => {
+            console.log('🎯 Animating Hey from scale(0.3) to scale(1) with spring bounce');
+            
+            // Remove the small scale class and apply full scale - CSS transition will animate smoothly
+            this.wordDisplay.classList.remove('initial-hey-scale');
+            this.wordDisplay.style.transform = 'scale(1)';
+            this.wordDisplay.style.transformOrigin = 'center center';
+            
+            // Remove animation class after animation completes to prevent other words from animating
+            setTimeout(() => {
+                this.wordDisplay.classList.remove('initial-hey-animation');
+                console.log('✅ Initial Hey transform animation complete, removed animation class');
+            }, 500); // Slightly longer than 0.4s animation duration
+            
+        }, 100); // Small delay to ensure smooth transition
+    }
+    
+    calculateTargetFontSize(word) {
+        // Same logic as calculateOptimalFontSize but just returns the size value
+        const baseSize = Math.min(window.innerWidth, window.innerHeight);
+        const wordLength = word.length;
+        
+        let fontSize;
+        if (wordLength <= 3) {
+            fontSize = baseSize * 0.25; // 25% of smaller viewport dimension
+        } else if (wordLength <= 6) {
+            fontSize = baseSize * 0.20; // 20% of smaller viewport dimension
+        } else if (wordLength <= 10) {
+            fontSize = baseSize * 0.15; // 15% of smaller viewport dimension
+        } else {
+            fontSize = baseSize * 0.12; // 12% of smaller viewport dimension
+        }
+        
+        // Ensure minimum readable size
+        fontSize = Math.max(fontSize, 24);
+        
+        return fontSize;
     }
     
     async preloadAllImages() {
@@ -171,8 +230,15 @@ class AudioWordSync {
         
         console.log('📝 Pre-loading known images:', knownImages.length);
         
-        // Load all known images in parallel
-        await Promise.all(knownImages.map(word => this.preloadWordImage(word)));
+        // Load images and Lottie data in parallel for better performance
+        const loadPromises = [
+            // Load all known images
+            ...knownImages.map(word => this.preloadWordImage(word)),
+            // Also preload the onward Lottie animation
+            this.preloadOnwardLottie()
+        ];
+        
+        await Promise.all(loadPromises);
         
         // Cache all other words as having no images
         this.words.forEach(wordObj => {
@@ -183,7 +249,7 @@ class AudioWordSync {
         });
         
         this.isPreloadingComplete = true;
-        console.log('✅ Image pre-loading complete! Cache:', this.imageCache.size, 'entries');
+        console.log('✅ All preloading complete! Images:', this.imageCache.size, 'entries, Lottie ready:', this.isOnwardLottieReady);
         
         // Check if we're ready to enable the play button
         this.checkIfReady();
@@ -245,6 +311,28 @@ class AudioWordSync {
         // No image found for this word (shouldn't happen with hardcoded list)
         this.imageCache.set(word, null);
         console.log(`🚫 No image found for: "${word}"`);
+    }
+    
+    async preloadOnwardLottie() {
+        console.log('🎬 Preloading onward Lottie animation...');
+        
+        try {
+            const response = await fetch('./onward.json', {
+                cache: 'force-cache'
+            });
+            
+            if (response.ok) {
+                this.preloadedOnwardLottie = await response.json();
+                this.isOnwardLottieReady = true;
+                console.log('✅ Onward Lottie preloaded successfully');
+            } else {
+                console.log('⚠️ Onward Lottie file not found, will use PNG fallback');
+                this.isOnwardLottieReady = false;
+            }
+        } catch (error) {
+            console.log('⚠️ Failed to preload onward Lottie:', error.message);
+            this.isOnwardLottieReady = false;
+        }
     }
 
     onAudioLoaded() {
@@ -805,32 +893,12 @@ class AudioWordSync {
         console.log('🌐 User Agent:', navigator.userAgent);
         console.log('📝 Word:', word, 'Length:', word.length);
         
-        // Simple responsive calculation based on viewport and word length
-        const baseSize = Math.min(window.innerWidth, window.innerHeight);
-        const wordLength = word.length;
-        
-        console.log('📏 Base size (min viewport):', baseSize);
-        
-        // Base size calculation: shorter words get bigger fonts
-        let fontSize;
-        if (wordLength <= 3) {
-            fontSize = baseSize * 0.25; // 25% of smaller viewport dimension
-        } else if (wordLength <= 6) {
-            fontSize = baseSize * 0.20; // 20% of smaller viewport dimension
-        } else if (wordLength <= 10) {
-            fontSize = baseSize * 0.15; // 15% of smaller viewport dimension
-        } else {
-            fontSize = baseSize * 0.12; // 12% of smaller viewport dimension
-        }
-        
-        console.log('🎯 Calculated font size (before min):', fontSize);
-        
-        // Ensure minimum readable size
-        fontSize = Math.max(fontSize, 24);
+        // Use the shared calculation method for consistency
+        const fontSize = this.calculateTargetFontSize(word);
         
         console.log('✅ Final font size:', fontSize);
         
-        // Apply the font size
+        // Apply the font size - CSS transitions will handle smooth changes
         element.style.fontSize = fontSize + 'px';
         
         // Verify it was applied
@@ -847,12 +915,12 @@ class AudioWordSync {
     }
     
     showEndMessage() {
-        // Try Lottie animation first, fallback to PNG if needed
-        if (typeof lottie !== 'undefined') {
-            console.log('🎬 Showing end message with Lottie animation');
+        // Check if we have preloaded Lottie data and library is available
+        if (typeof lottie !== 'undefined' && this.isOnwardLottieReady && this.preloadedOnwardLottie) {
+            console.log('🎬 Showing end message with preloaded Lottie animation');
             this.showEndMessageLottie();
         } else {
-            console.log('📸 Lottie not available, using PNG fallback');
+            console.log('📸 Using PNG fallback for end message');
             this.showEndMessagePNG();
         }
     }
@@ -889,40 +957,41 @@ class AudioWordSync {
         linkContainer.appendChild(lottieContainer);
         this.wordDisplay.appendChild(linkContainer);
         
+        // Pre-calculate the optimal size to prevent layout shifts
+        const targetDimensions = this.calculateOptimalEndMessageSize();
+        lottieContainer.style.width = targetDimensions.width + 'px';
+        lottieContainer.style.height = targetDimensions.height + 'px';
+        
         try {
-            // Load and play Lottie animation
+            // Use preloaded animation data for instant loading
             this.endMessageAnimation = lottie.loadAnimation({
                 container: lottieContainer,
                 renderer: 'canvas', // Better performance
                 loop: true, // Loop the end message animation
                 autoplay: true,
-                path: './onward.json',
+                animationData: this.preloadedOnwardLottie, // Use preloaded data instead of path
                 rendererSettings: {
                     preserveAspectRatio: 'xMidYMid meet',
                     clearCanvas: true,
-                    progressiveLoad: true,
+                    progressiveLoad: false, // Not needed with preloaded data
                     hideOnTransparent: true
                 }
             });
             
-            // Handle successful load
+            // Animation should load instantly with preloaded data
             this.endMessageAnimation.addEventListener('DOMLoaded', () => {
-                console.log('✅ End message Lottie animation loaded successfully');
-                // Apply responsive sizing similar to image sizing
-                this.calculateOptimalLottieSize(lottieContainer);
+                console.log('✅ End message Lottie animation rendered instantly');
             });
             
-            // Handle loading errors
+            // This shouldn't happen with preloaded data, but keep as safety
             this.endMessageAnimation.addEventListener('data_failed', (error) => {
-                console.error('❌ End message Lottie failed to load:', error);
-                console.log('📸 Falling back to PNG image');
+                console.error('❌ Unexpected error with preloaded Lottie:', error);
                 this.cleanupEndMessageLottie();
                 this.showEndMessagePNG();
             });
             
         } catch (error) {
-            console.error('❌ Error initializing end message Lottie:', error);
-            console.log('📸 Falling back to PNG image');
+            console.error('❌ Error initializing preloaded Lottie:', error);
             this.cleanupEndMessageLottie();
             this.showEndMessagePNG();
         }
@@ -932,41 +1001,53 @@ class AudioWordSync {
         // Clear any existing content and transforms
         this.wordDisplay.innerHTML = '';
         this.wordDisplay.style.transform = '';
-        
-        // Display linked image (original implementation)
-        this.wordDisplay.innerHTML = '<a href="https://docs.google.com/presentation/d/1fdFmGObclXSmWrvj6TELDlrwHWwmko8rPoL5G9diFOY/present?slide=id.gefbcca66b8_0_944" target="_blank" style="display: block; text-decoration: none;"><img id="wordImage" src="./onward.png" alt="Check out my work"></a>';
         this.wordDisplay.style.cursor = 'pointer';
-        this.calculateOptimalImageSize();
+        
+        // Create container with consistent sizing to match Lottie
+        const targetDimensions = this.calculateOptimalEndMessageSize();
+        
+        // Create the same container structure as Lottie for consistency
+        const linkContainer = document.createElement('a');
+        linkContainer.href = 'https://docs.google.com/presentation/d/1fdFmGObclXSmWrvj6TELDlrwHWwmko8rPoL5G9diFOY/present?slide=id.gefbcca66b8_0_944';
+        linkContainer.target = '_blank';
+        linkContainer.style.display = 'block';
+        linkContainer.style.textDecoration = 'none';
+        linkContainer.style.width = '100%';
+        linkContainer.style.height = '100%';
+        linkContainer.style.cursor = 'pointer';
+        
+        // Create image with consistent dimensions
+        const imageElement = document.createElement('img');
+        imageElement.id = 'wordImage';
+        imageElement.src = './onward.png';
+        imageElement.alt = 'Check out my work';
+        imageElement.style.width = targetDimensions.width + 'px';
+        imageElement.style.height = targetDimensions.height + 'px';
+        imageElement.style.objectFit = 'contain';
+        imageElement.style.display = 'block';
+        imageElement.style.margin = '0 auto';
+        
+        linkContainer.appendChild(imageElement);
+        this.wordDisplay.appendChild(linkContainer);
     }
     
-    calculateOptimalLottieSize(lottieContainer) {
-        console.log('📐 Calculating optimal Lottie size for end message');
-        
-        // Define target constraints similar to image sizing
+    calculateOptimalEndMessageSize() {
+        // Consistent sizing logic for both PNG and Lottie end messages
         const maxWidth = window.innerWidth * 0.88;
         const maxHeight = window.innerHeight * 0.55;
         
-        console.log('🎯 Lottie target constraints:', maxWidth, 'x', maxHeight);
+        // Apply reasonable constraints 
+        const finalWidth = Math.min(maxWidth, 400);
+        const finalHeight = Math.min(maxHeight, 300);
         
-        // Apply responsive sizing
-        const finalWidth = Math.min(maxWidth, 400); // Max reasonable width
-        const finalHeight = Math.min(maxHeight, 300); // Max reasonable height
+        console.log('📐 Calculated consistent end message size:', finalWidth, 'x', finalHeight);
         
-        lottieContainer.style.width = finalWidth + 'px';
-        lottieContainer.style.height = finalHeight + 'px';
-        lottieContainer.style.maxWidth = maxWidth + 'px';
-        lottieContainer.style.maxHeight = maxHeight + 'px';
-        
-        console.log('✅ Applied Lottie dimensions:', finalWidth, 'x', finalHeight);
-        
-        // Force reflow
-        lottieContainer.offsetHeight;
-        
-        // Resize the animation to fit the container
-        if (this.endMessageAnimation) {
-            this.endMessageAnimation.resize();
-        }
+        return {
+            width: finalWidth,
+            height: finalHeight
+        };
     }
+    
     
     cleanupEndMessageLottie() {
         console.log('🧹 Cleaning up end message Lottie animation');

@@ -111,6 +111,26 @@
             /* white-space: nowrap; REMOVED - was causing overflow on small screens */
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            
+            /* No global transitions - words should appear instantly by default */
+        }
+
+        /* Initial small scale for Hey - will be animated to scale(1) */
+        #currentWord.initial-hey-scale {
+            transform: scale(0.3);
+            transform-origin: center center;
+        }
+
+        /* Dedicated animation class for initial Hey scaling only */
+        #currentWord.initial-hey-animation {
+            /* Safari-optimized transform animation instead of font-size */
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            -webkit-transition: -webkit-transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            
+            /* Performance hints for Safari */
+            will-change: transform;
+            -webkit-backface-visibility: hidden;
+            transform-style: preserve-3d;
         }
 
         #wordImage {
@@ -232,7 +252,7 @@
         </div>
         
         <div class="word-display">
-            <div id="currentWord" style="cursor: pointer;">Hey</div>
+            <div id="currentWord" class="initial-hey-scale" style="cursor: pointer;">Hey</div>
         </div>
         
         <div class="bottom-nav">
