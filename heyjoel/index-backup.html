@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Word Synchronizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@500&family=Sniglet:wght@800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "DM Mono", monospace;
+            font-weight: 500;
+            background: #FAE1DF;
+            color: #000;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            padding: 20px 0;
+            font-family: "DM Mono", monospace;
+            font-weight: 500;
+            font-size: 12px;
+            color: #000;
+        }
+
+        .nav-left {
+            text-align: left;
+        }
+
+        .nav-right {
+            text-align: right;
+            line-height: 1.4;
+        }
+
+        .nav-right a {
+            color: #000;
+            text-decoration: none;
+        }
+
+        .nav-right a:hover {
+            text-decoration: underline;
+        }
+
+        .word-display {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+            padding: 20px 0;
+            min-height: 0;
+        }
+
+        #currentWord {
+            font-family: "Sniglet", cursive;
+            font-weight: 800;
+            /* font-size: 10vw; REMOVED - now handled by JavaScript for responsive scaling */
+            line-height: 1.1;
+            letter-spacing: -6px;
+            color: #000;
+            max-width: 95vw;
+            word-wrap: break-word;
+            hyphens: auto;
+            /* white-space: nowrap; REMOVED - was causing overflow on small screens */
+        }
+
+        #wordImage {
+            display: block;
+            object-fit: contain;
+            max-width: 100%;
+            max-height: 100%;
+            margin: 0 auto;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+
+        #playPauseBtn {
+            background: #F5CECB;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 30px;
+            color: #000;
+            font-family: "DM Mono", monospace;
+            font-weight: 500;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #playPauseBtn:hover:not(:disabled) {
+            background: #F0C1BD;
+        }
+
+        #playPauseBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            width: calc(100vw - 80px);
+            max-width: calc(100vw - 80px);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #000;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-family: "DM Mono", monospace;
+            font-weight: 500;
+            font-size: 12px;
+            color: #000;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                bottom: 20px;
+            }
+            
+            .progress-container {
+                width: calc(100vw - 60px);
+            }
+            
+            .top-nav {
+                padding: 15px 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .progress-container {
+                width: calc(100vw - 40px);
+            }
+            
+            .top-nav {
+                padding: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top-nav">
+            <div class="nav-left">David Gallagher<br>
+            &mdash; with help from Claude</div>
+            <div class="nav-right">
+                <a href="#">Selected Work</a><br>
+                <a href="#">References</a>
+            </div>
+        </div>
+        
+        <div class="word-display">
+            <div id="currentWord" style="cursor: pointer;">Play</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="playPauseBtn">Click to Play</button>
+        
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <div class="time-display">
+                <span id="currentTime">0:00</span>
+                <span id="duration">0:00</span>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audioPlayer" preload="metadata"></audio>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
