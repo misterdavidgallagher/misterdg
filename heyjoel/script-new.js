@@ -16,6 +16,18 @@ class AudioWordSync {
         this.clearTimeout = null; // For delayed clearing
         this.lastDisplayType = null; // Track if showing image or text
         
+        // Confetti system
+        this.confettiAnimation = null; // Track active confetti animation
+        this.isConfettiPlaying = false; // Prevent multiple instances
+        
+        // End message system
+        this.endMessageAnimation = null; // Track end message Lottie animation
+        
+        // Pre-loading system
+        this.imageCache = new Map(); // Cache which words have images
+        this.preloadedImages = new Map(); // Store pre-loaded image elements
+        this.isPreloadingComplete = false;
+        
         this.setupEventListeners();
     }
     
@@ -57,6 +69,10 @@ class AudioWordSync {
             this.words = await response.json();
             this.currentWordIndex = 0;
             console.log('✅ JSON loaded successfully:', this.words.length, 'words');
+            
+            // Start image pre-loading process
+            console.log('🖼️ Starting image pre-loading...');
+            await this.preloadAllImages();
             
             // Load audio file
             console.log('🎵 Setting audio source to ./audio.m4a');
@@ -120,13 +136,23 @@ class AudioWordSync {
         }
     }
     
-    checkIfReady() {
+    async checkIfReady() {
         console.log('🔄 checkIfReady called');
         console.log('🎵 Audio src:', this.audio.src);
         console.log('📝 Words loaded:', this.words.length);
+        console.log('🖼️ Pre-loading complete:', this.isPreloadingComplete);
         
-        if (this.audio.src && this.words.length > 0) {
-            console.log('✅ Files ready - enabling play button');
+        if (this.audio.src && this.words.length > 0 && this.isPreloadingComplete) {
+            // Ensure fonts are fully loaded before enabling play
+            if (document.fonts) {
+                console.log('🔤 Waiting for fonts to load...');
+                await document.fonts.ready;
+                console.log('✅ Fonts loaded successfully');
+            } else {
+                console.log('⚠️ Font Loading API not supported, proceeding anyway');
+            }
+            
+            console.log('✅ Everything ready - enabling play button');
             this.hasFiles = true;
             this.playBtn.disabled = false;
             this.wordDisplay.textContent = 'Hey';
@@ -137,6 +163,90 @@ class AudioWordSync {
         }
     }
     
+    async preloadAllImages() {
+        console.log('🖼️ preloadAllImages started');
+        
+        // Hardcoded list of known images - much faster than discovery!
+        const knownImages = ['joel', 'david', 'google', 'netflix', 'bbc', 'intel', 'claude', 'anthropic'];
+        
+        console.log('📝 Pre-loading known images:', knownImages.length);
+        
+        // Load all known images in parallel
+        await Promise.all(knownImages.map(word => this.preloadWordImage(word)));
+        
+        // Cache all other words as having no images
+        this.words.forEach(wordObj => {
+            const cleanWord = wordObj.word.toLowerCase().replace(/[.,!?;:]$/, '');
+            if (!this.imageCache.has(cleanWord)) {
+                this.imageCache.set(cleanWord, null);
+            }
+        });
+        
+        this.isPreloadingComplete = true;
+        console.log('✅ Image pre-loading complete! Cache:', this.imageCache.size, 'entries');
+        
+        // Check if we're ready to enable the play button
+        this.checkIfReady();
+    }
+    
+    async preloadWordImage(word) {
+        const formats = ['png', 'jpg', 'svg'];
+        
+        console.log(`🔍 Loading known image: "${word}"`);
+        
+        for (const format of formats) {
+            const imagePath = `./${word}.${format}`;
+            try {
+                const response = await fetch(imagePath, { 
+                    method: 'HEAD',
+                    cache: 'force-cache'
+                });
+                
+                if (response.ok) {
+                    console.log(`✅ Found image for "${word}": ${imagePath}`);
+                    
+                    // Cache the result
+                    this.imageCache.set(word, imagePath);
+                    
+                    // Pre-load the actual image element
+                    const img = new Image();
+                    img.src = imagePath;
+                    
+                    // Wait for image to load with faster timeout
+                    await new Promise((resolve, reject) => {
+                        img.onload = () => {
+                            console.log(`📥 Pre-loaded image: ${imagePath}`);
+                            this.preloadedImages.set(word, img);
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            console.log(`⚠️ Failed to pre-load image: ${imagePath}`);
+                            reject();
+                        };
+                        
+                        // Faster timeout - 500ms instead of 2000ms
+                        setTimeout(() => {
+                            console.log(`⏰ Timeout pre-loading: ${imagePath}`);
+                            reject();
+                        }, 500);
+                    }).catch(() => {
+                        // If pre-loading fails, still cache that the image exists
+                        console.log(`⚠️ Pre-load failed but image exists: ${imagePath}`);
+                    });
+                    
+                    return; // Found image, stop checking other formats
+                }
+            } catch (error) {
+                // Continue to next format
+                continue;
+            }
+        }
+        
+        // No image found for this word (shouldn't happen with hardcoded list)
+        this.imageCache.set(word, null);
+        console.log(`🚫 No image found for: "${word}"`);
+    }
+
     onAudioLoaded() {
         this.durationDisplay.textContent = this.formatTime(this.audio.duration);
     }
@@ -202,9 +312,6 @@ class AudioWordSync {
     }
     
     updateCurrentWord(currentTime) {
-        // Add timing tolerance for Safari (±0.15 seconds)
-        const tolerance = 0.15;
-        
         // Clear any pending clear timeout since we're updating
         if (this.clearTimeout) {
             clearTimeout(this.clearTimeout);
@@ -215,6 +322,10 @@ class AudioWordSync {
         for (let i = 0; i < this.words.length; i++) {
             const word = this.words[i];
             
+            // Dynamic tolerance: more forgiving for short words
+            const wordDuration = word.end - word.start;
+            const tolerance = wordDuration < 0.2 ? 0.25 : 0.15; // ±0.25s for words <200ms, ±0.15s for longer words
+            
             // More forgiving timing check
             const wordStart = word.start - tolerance;
             const wordEnd = word.end + tolerance;
@@ -222,7 +333,7 @@ class AudioWordSync {
             if (currentTime >= wordStart && currentTime <= wordEnd) {
                 if (i !== this.currentWordIndex) {
                     console.log(`⏰ Time ${currentTime.toFixed(2)}s: Switching from index ${this.currentWordIndex} to ${i}`);
-                    console.log(`📝 New word: "${word.word}" (${word.start}s - ${word.end}s) [tolerance: ±${tolerance}s]`);
+                    console.log(`📝 New word: "${word.word}" (${word.start}s - ${word.end}s, duration: ${wordDuration.toFixed(2)}s) [tolerance: ±${tolerance}s]`);
                     this.currentWordIndex = i;
                     this.displayWord(word);
                 }
@@ -296,9 +407,19 @@ class AudioWordSync {
     
     async checkForWordImage(word) {
         const cleanWord = word.toLowerCase().replace(/[.,!?;:]$/, ''); // Remove punctuation
-        const formats = ['png', 'jpg', 'svg'];
         
-        console.log(`🖼️ Checking for image: "${cleanWord}"`);
+        console.log(`🖼️ Checking cache for image: "${cleanWord}"`);
+        
+        // Use pre-loaded cache if available
+        if (this.imageCache.has(cleanWord)) {
+            const cachedPath = this.imageCache.get(cleanWord);
+            console.log(`💾 Cache hit for "${cleanWord}":`, cachedPath || 'no image');
+            return cachedPath;
+        }
+        
+        // Fallback to original logic if not in cache (shouldn't happen with pre-loading)
+        console.log(`⚠️ Cache miss for "${cleanWord}" - falling back to HTTP check`);
+        const formats = ['png', 'jpg', 'svg'];
         
         for (const format of formats) {
             const imagePath = `./${cleanWord}.${format}`;
@@ -306,7 +427,7 @@ class AudioWordSync {
             try {
                 const response = await fetch(imagePath, { 
                     method: 'HEAD',
-                    cache: 'force-cache' // Cache results to avoid repeated requests
+                    cache: 'force-cache'
                 });
                 console.log(`📷 ${imagePath} - Status: ${response.status}`);
                 if (response.ok) {
@@ -329,39 +450,167 @@ class AudioWordSync {
     }
     
     playConfetti() {
-        // Create confetti video overlay
-        const confettiVideo = document.createElement('video');
-        confettiVideo.id = 'confettiOverlay';
-        confettiVideo.src = './confetti.webm';
-        confettiVideo.autoplay = true;
-        confettiVideo.muted = true; // Required for autoplay
-        confettiVideo.style.position = 'fixed';
-        confettiVideo.style.top = '50%';
-        confettiVideo.style.left = '50%';
-        confettiVideo.style.transform = 'translate(-50%, -50%)';
-        confettiVideo.style.width = 'auto';
-        confettiVideo.style.height = 'auto';
-        confettiVideo.style.maxWidth = '100vw';
-        confettiVideo.style.maxHeight = '100vh';
-        confettiVideo.style.zIndex = '10'; // Above word display but below controls
-        confettiVideo.style.pointerEvents = 'none'; // Don't block interactions
+        // Prevent multiple instances
+        if (this.isConfettiPlaying) {
+            console.log('🎉 Confetti already playing, skipping...');
+            return;
+        }
+        
+        // Check if Lottie library is available
+        if (typeof lottie === 'undefined') {
+            console.error('❌ Lottie library not loaded, falling back to simple animation');
+            this.playConfettiFallback();
+            return;
+        }
+        
+        console.log('🎉 Starting Lottie confetti animation');
+        this.isConfettiPlaying = true;
+        
+        // Create container for Lottie animation
+        const confettiContainer = document.createElement('div');
+        confettiContainer.id = 'confettiOverlay';
+        confettiContainer.style.position = 'fixed';
+        confettiContainer.style.top = '50%';
+        confettiContainer.style.left = '50%';
+        confettiContainer.style.transform = 'translate(-50%, -50%)';
+        confettiContainer.style.width = '100vw';
+        confettiContainer.style.height = '100vh';
+        confettiContainer.style.zIndex = '10'; // Above word display but below controls
+        confettiContainer.style.pointerEvents = 'none'; // Don't block interactions
+        confettiContainer.style.maxWidth = '100vw';
+        confettiContainer.style.maxHeight = '100vh';
         
         // Add to page
-        document.body.appendChild(confettiVideo);
+        document.body.appendChild(confettiContainer);
         
-        // Remove when video ends
-        confettiVideo.addEventListener('ended', () => {
-            if (confettiVideo.parentNode) {
-                confettiVideo.parentNode.removeChild(confettiVideo);
-            }
-        });
+        try {
+            // Load and play Lottie animation
+            this.confettiAnimation = lottie.loadAnimation({
+                container: confettiContainer,
+                renderer: 'canvas', // Better performance than SVG
+                loop: false, // Play once
+                autoplay: true,
+                path: './confetti.json', // Your Lottie file
+                rendererSettings: {
+                    preserveAspectRatio: 'xMidYMid meet',
+                    clearCanvas: true,
+                    progressiveLoad: true,
+                    hideOnTransparent: true
+                }
+            });
+            
+            // Handle animation complete
+            this.confettiAnimation.addEventListener('complete', () => {
+                console.log('✅ Confetti animation completed');
+                this.cleanupConfetti();
+            });
+            
+            // Handle loading errors
+            this.confettiAnimation.addEventListener('data_failed', (error) => {
+                console.error('❌ Lottie animation failed to load:', error);
+                this.cleanupConfetti();
+                this.playConfettiFallback();
+            });
+            
+            // Fallback timeout (in case animation gets stuck)
+            setTimeout(() => {
+                if (this.isConfettiPlaying) {
+                    console.log('⏰ Confetti timeout reached, cleaning up');
+                    this.cleanupConfetti();
+                }
+            }, 5000);
+            
+        } catch (error) {
+            console.error('❌ Error initializing Lottie confetti:', error);
+            this.cleanupConfetti();
+            this.playConfettiFallback();
+        }
+    }
+    
+    cleanupConfetti() {
+        console.log('🧹 Cleaning up confetti animation');
         
-        // Also remove after 5 seconds as fallback
+        // Destroy Lottie animation
+        if (this.confettiAnimation) {
+            this.confettiAnimation.destroy();
+            this.confettiAnimation = null;
+        }
+        
+        // Remove container
+        const confettiContainer = document.getElementById('confettiOverlay');
+        if (confettiContainer && confettiContainer.parentNode) {
+            confettiContainer.parentNode.removeChild(confettiContainer);
+        }
+        
+        // Reset state
+        this.isConfettiPlaying = false;
+    }
+    
+    playConfettiFallback() {
+        console.log('🎪 Playing fallback confetti animation');
+        
+        // Simple CSS-based confetti fallback
+        const fallbackContainer = document.createElement('div');
+        fallbackContainer.id = 'confettiFallback';
+        fallbackContainer.style.position = 'fixed';
+        fallbackContainer.style.top = '0';
+        fallbackContainer.style.left = '0';
+        fallbackContainer.style.width = '100vw';
+        fallbackContainer.style.height = '100vh';
+        fallbackContainer.style.zIndex = '10';
+        fallbackContainer.style.pointerEvents = 'none';
+        fallbackContainer.style.overflow = 'hidden';
+        
+        // Create simple animated confetti particles
+        const colors = ['#f1c40f', '#e74c3c', '#9b59b6', '#3498db', '#2ecc71'];
+        const particleCount = 50;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.style.position = 'absolute';
+            particle.style.width = '8px';
+            particle.style.height = '8px';
+            particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.borderRadius = '50%';
+            particle.style.left = Math.random() * 100 + 'vw';
+            particle.style.top = '-10px';
+            particle.style.opacity = Math.random() * 0.8 + 0.2;
+            
+            // Simple animation
+            particle.style.animation = `confettiFall ${2 + Math.random() * 3}s linear forwards`;
+            particle.style.animationDelay = Math.random() * 0.5 + 's';
+            
+            fallbackContainer.appendChild(particle);
+        }
+        
+        // Add CSS animation
+        if (!document.getElementById('confettiStyles')) {
+            const style = document.createElement('style');
+            style.id = 'confettiStyles';
+            style.textContent = `
+                @keyframes confettiFall {
+                    0% {
+                        transform: translateY(-10vh) rotate(0deg);
+                        opacity: 1;
+                    }
+                    100% {
+                        transform: translateY(110vh) rotate(360deg);
+                        opacity: 0;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(fallbackContainer);
+        
+        // Clean up fallback after animation
         setTimeout(() => {
-            if (confettiVideo.parentNode) {
-                confettiVideo.parentNode.removeChild(confettiVideo);
+            if (fallbackContainer.parentNode) {
+                fallbackContainer.parentNode.removeChild(fallbackContainer);
             }
-        }, 5000);
+            this.isConfettiPlaying = false;
+        }, 4000);
     }
     
     calculateOptimalImageSize() {
@@ -598,14 +847,142 @@ class AudioWordSync {
     }
     
     showEndMessage() {
+        // Try Lottie animation first, fallback to PNG if needed
+        if (typeof lottie !== 'undefined') {
+            console.log('🎬 Showing end message with Lottie animation');
+            this.showEndMessageLottie();
+        } else {
+            console.log('📸 Lottie not available, using PNG fallback');
+            this.showEndMessagePNG();
+        }
+    }
+    
+    showEndMessageLottie() {
+        // Clear any existing content and transforms
+        this.wordDisplay.innerHTML = '';
+        this.wordDisplay.style.transform = '';
+        this.wordDisplay.style.cursor = 'pointer';
+        
+        // Create clickable container for Lottie animation
+        const linkContainer = document.createElement('a');
+        linkContainer.href = 'https://docs.google.com/presentation/d/1fdFmGObclXSmWrvj6TELDlrwHWwmko8rPoL5G9diFOY/present?slide=id.gefbcca66b8_0_944';
+        linkContainer.target = '_blank';
+        linkContainer.style.display = 'block';
+        linkContainer.style.textDecoration = 'none';
+        linkContainer.style.width = '100%';
+        linkContainer.style.height = '100%';
+        linkContainer.style.cursor = 'pointer';
+        
+        // Create container for Lottie animation
+        const lottieContainer = document.createElement('div');
+        lottieContainer.id = 'endMessageLottie';
+        lottieContainer.style.width = '100%';
+        lottieContainer.style.height = '100%';
+        lottieContainer.style.display = 'flex';
+        lottieContainer.style.alignItems = 'center';
+        lottieContainer.style.justifyContent = 'center';
+        lottieContainer.style.maxWidth = '88vw';
+        lottieContainer.style.maxHeight = '55vh';
+        lottieContainer.style.margin = '0 auto';
+        
+        // Nest the containers
+        linkContainer.appendChild(lottieContainer);
+        this.wordDisplay.appendChild(linkContainer);
+        
+        try {
+            // Load and play Lottie animation
+            this.endMessageAnimation = lottie.loadAnimation({
+                container: lottieContainer,
+                renderer: 'canvas', // Better performance
+                loop: true, // Loop the end message animation
+                autoplay: true,
+                path: './onward.json',
+                rendererSettings: {
+                    preserveAspectRatio: 'xMidYMid meet',
+                    clearCanvas: true,
+                    progressiveLoad: true,
+                    hideOnTransparent: true
+                }
+            });
+            
+            // Handle successful load
+            this.endMessageAnimation.addEventListener('DOMLoaded', () => {
+                console.log('✅ End message Lottie animation loaded successfully');
+                // Apply responsive sizing similar to image sizing
+                this.calculateOptimalLottieSize(lottieContainer);
+            });
+            
+            // Handle loading errors
+            this.endMessageAnimation.addEventListener('data_failed', (error) => {
+                console.error('❌ End message Lottie failed to load:', error);
+                console.log('📸 Falling back to PNG image');
+                this.cleanupEndMessageLottie();
+                this.showEndMessagePNG();
+            });
+            
+        } catch (error) {
+            console.error('❌ Error initializing end message Lottie:', error);
+            console.log('📸 Falling back to PNG image');
+            this.cleanupEndMessageLottie();
+            this.showEndMessagePNG();
+        }
+    }
+    
+    showEndMessagePNG() {
         // Clear any existing content and transforms
         this.wordDisplay.innerHTML = '';
         this.wordDisplay.style.transform = '';
         
-        // Display linked image
+        // Display linked image (original implementation)
         this.wordDisplay.innerHTML = '<a href="https://docs.google.com/presentation/d/1fdFmGObclXSmWrvj6TELDlrwHWwmko8rPoL5G9diFOY/present?slide=id.gefbcca66b8_0_944" target="_blank" style="display: block; text-decoration: none;"><img id="wordImage" src="./onward.png" alt="Check out my work"></a>';
         this.wordDisplay.style.cursor = 'pointer';
         this.calculateOptimalImageSize();
+    }
+    
+    calculateOptimalLottieSize(lottieContainer) {
+        console.log('📐 Calculating optimal Lottie size for end message');
+        
+        // Define target constraints similar to image sizing
+        const maxWidth = window.innerWidth * 0.88;
+        const maxHeight = window.innerHeight * 0.55;
+        
+        console.log('🎯 Lottie target constraints:', maxWidth, 'x', maxHeight);
+        
+        // Apply responsive sizing
+        const finalWidth = Math.min(maxWidth, 400); // Max reasonable width
+        const finalHeight = Math.min(maxHeight, 300); // Max reasonable height
+        
+        lottieContainer.style.width = finalWidth + 'px';
+        lottieContainer.style.height = finalHeight + 'px';
+        lottieContainer.style.maxWidth = maxWidth + 'px';
+        lottieContainer.style.maxHeight = maxHeight + 'px';
+        
+        console.log('✅ Applied Lottie dimensions:', finalWidth, 'x', finalHeight);
+        
+        // Force reflow
+        lottieContainer.offsetHeight;
+        
+        // Resize the animation to fit the container
+        if (this.endMessageAnimation) {
+            this.endMessageAnimation.resize();
+        }
+    }
+    
+    cleanupEndMessageLottie() {
+        console.log('🧹 Cleaning up end message Lottie animation');
+        
+        // Destroy Lottie animation
+        if (this.endMessageAnimation) {
+            this.endMessageAnimation.destroy();
+            this.endMessageAnimation = null;
+        }
+        
+        // Clear the word display if it contains Lottie content
+        const lottieContainer = document.getElementById('endMessageLottie');
+        if (lottieContainer) {
+            // Clear the entire word display to start fresh
+            this.wordDisplay.innerHTML = '';
+        }
     }
     
     formatTime(seconds) {
