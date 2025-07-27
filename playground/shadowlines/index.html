@@ -22,8 +22,7 @@
             height: 100vh;
             width: 100vw;
         }
-
-        /* Container with 100px margin on all sides */
+/* Container with 100px margin on all sides */
         #container {
             position: absolute;
             top: 100px;
@@ -124,6 +123,12 @@
     <script>
         let scene, camera, renderer, material, plane;
         let uniforms;
+        let lastHoveredCellID = new THREE.Vector2(-1, -1); // Tracks the cell currently under the mouse
+
+        // Variables to manage spin completion
+        let activeSpinCellID = new THREE.Vector2(-1, -1); // The cell that is currently performing a spin
+        let spinCompletionTime = -1.0; // The time when the current spin should end
+        const KICK_DURATION = 0.3; // Must match the kick_duration in the shader
 
         // Configuration for the field pattern
         const config = {
@@ -150,6 +155,8 @@
             uniform float u_rotationSpeed;
             uniform vec3 u_fieldColor1;
             uniform vec3 u_backgroundColor;
+            uniform vec2 u_mouse_cell_id; // Cell ID that is currently spinning (or was last hovered for spin)
+            uniform float u_hover_start_time; // Time when the spin for u_mouse_cell_id started
 
             float random(vec2 st) {
                 return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
@@ -196,7 +203,7 @@
                 // Get fragment coordinate relative to the top-left of the centered grid
                 vec2 pixel_coord_in_grid = gl_FragCoord.xy - vec2(offset_x_pixels, offset_y_pixels);
 
-                // Convert to float cell coordinates (e.g., 0.0 to num_cols_to_display for x)
+                // Convert to float cell coordinates (e.0 to num_cols_to_display for x)
                 vec2 cell_coords_float = pixel_coord_in_grid / vec2(cell_pixel_width, cell_pixel_height);
                 
                 // Get integer cell ID (0-indexed, from top-left of the visible grid)
@@ -218,10 +225,44 @@
                 // Calculate flow field direction (using original uv for global consistency)
                 float t = u_time * u_speed;
                 vec2 flowPos = gl_FragCoord.xy / u_resolution.xy + vec2(sin(t * 0.3), cos(t * 0.4)) * 0.08;
-                float flowAngle = sin(flowPos.x * u_flowStrength + t * u_rotationSpeed) * cos(flowPos.y * u_flowStrength + t * u_rotationSpeed * 0.7) * 3.14159;
                 
-                // Add per-cell variation to flow angle
-                flowAngle += sin(cellRandom * 100.0 + t * u_rotationSpeed) * 0.8;
+                // Calculate the base flow angle for the current cell at current time
+                float baseFlowAngle_current = sin(flowPos.x * u_flowStrength + t * u_rotationSpeed) * cos(flowPos.y * u_flowStrength + t * u_rotationSpeed * 0.7) * 3.14159;
+                baseFlowAngle_current += sin(cellRandom * 100.0 + t * u_rotationSpeed) * 0.8;
+
+                // Calculate the base flow angle for the current cell at a slightly future time
+                float future_t = u_time + 0.001; // Small time increment
+                float baseFlowAngle_future = sin(flowPos.x * u_flowStrength + future_t * u_rotationSpeed) * cos(flowPos.y * u_flowStrength + future_t * u_rotationSpeed * 0.7) * 3.14159;
+                baseFlowAngle_future += sin(cellRandom * 100.0 + future_t * u_rotationSpeed) * 0.8;
+
+                // Determine the instantaneous direction of rotation for this specific line
+                // If the difference is zero, it means no movement, so we can default to the global rotation sign
+                float instantaneous_direction = sign(baseFlowAngle_future - baseFlowAngle_current);
+                if (instantaneous_direction == 0.0) {
+                    instantaneous_direction = sign(u_rotationSpeed); // Fallback if no movement detected
+                }
+
+                float flowAngle = baseFlowAngle_current; // Start with the current base flow angle
+
+                // --- Hover Effect Calculation ---
+                float hover_rotation_kick = 0.0;
+                // Check if this cell is the one currently designated for a spin animation
+                if (cellID.x == u_mouse_cell_id.x && cellID.y == u_mouse_cell_id.y && u_hover_start_time >= 0.0) {
+                    float hover_duration = u_time - u_hover_start_time;
+                    float kick_duration = 0.3; // Total duration for the spin effect (matches JS KICK_DURATION)
+
+                    // Calculate a smooth progress from 0 to 1, clamped at 1.0
+                    float progress = clamp(hover_duration / kick_duration, 0.0, 1.0);
+                    
+                    // Apply a cubic ease-out to the progress for a more pronounced slow-down
+                    float eased_progress = 1.0 - pow(1.0 - progress, 3.0); // Cubic ease-out
+                    
+                    // Apply the 180-degree spin, ensuring it respects the instantaneous flow direction
+                    hover_rotation_kick = smoothstep(0.0, 1.0, eased_progress) * 1.0 * 3.14159 * instantaneous_direction; 
+                }
+                
+                // Add hover kick to the flow angle
+                flowAngle += hover_rotation_kick;
                 
                 // Rotate cell coordinates based on flow angle
                 float cosA = cos(flowAngle);
@@ -264,6 +305,9 @@
                 float shadowFlowAngle = sin(shadowFlowPos.x * u_flowStrength + t * u_rotationSpeed) * cos(shadowFlowPos.y * u_flowStrength + t * u_rotationSpeed * 0.7) * 3.14159;
                 shadowFlowAngle += sin(shadowCellRandom * 100.0 + t * u_rotationSpeed) * 0.8;
 
+                // Apply the same hover kick to the shadow's rotation
+                shadowFlowAngle += hover_rotation_kick;
+
                 // Rotate shadow cell coordinates
                 vec2 rotatedShadowUV = vec2(
                     shadow_cellUV.x * cos(shadowFlowAngle) - shadow_cellUV.y * sin(shadowFlowAngle),
@@ -275,7 +319,7 @@
                 // Use a slightly larger epsilon for shadow smoothness
                 float epsilon_smooth_shadow = 0.025; 
                 
-                // Scale factor for the shadow line size (e.g., 0.8 makes it 80% of main line size)
+                // Scale factor for the shadow line size (e.8 makes it 80% of main line size)
                 float shadow_size_scale = 0.7;
 
                 float shadowShape = 1.0 - smoothstep(0.1 - epsilon_smooth_shadow, 0.1 + epsilon_smooth_shadow, shadowLineUV.y / shadow_size_scale);
@@ -313,7 +357,9 @@
                 u_flowStrength: { value: config.flowStrength },
                 u_rotationSpeed: { value: config.rotationSpeed },
                 u_fieldColor1: { value: new THREE.Vector3(config.fieldColor1.r, config.fieldColor1.g, config.fieldColor1.b) },
-                u_backgroundColor: { value: new THREE.Vector3(config.backgroundColor.r, config.backgroundColor.g, config.backgroundColor.b) }
+                u_backgroundColor: { value: new THREE.Vector3(config.backgroundColor.r, config.backgroundColor.g, config.backgroundColor.b) },
+                u_mouse_cell_id: { value: new THREE.Vector2(-1, -1) }, // Cell ID that is currently spinning
+                u_hover_start_time: { value: -1.0 } // Time when the spin for u_mouse_cell_id started
             };
 
             material = new THREE.ShaderMaterial({
@@ -326,12 +372,36 @@
             plane = new THREE.Mesh(geometry, material);
             scene.add(plane);
 
+            // Mouse event listeners
+            renderer.domElement.addEventListener('mousemove', onMouseMove);
+            renderer.domElement.addEventListener('mouseleave', onMouseLeave);
+
+            // Touch event listeners
+            renderer.domElement.addEventListener('touchstart', onTouchStart, { passive: false });
+            renderer.domElement.addEventListener('touchmove', onTouchMove, { passive: false });
+            renderer.domElement.addEventListener('touchend', onTouchEnd);
+            renderer.domElement.addEventListener('touchcancel', onTouchEnd); // Handle touch cancel as well
+
             animate();
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            uniforms.u_time.value += 0.016;
+            uniforms.u_time.value += 0.016; // Assuming 60 FPS, this is 1/60th of a second
+            
+            // Check if an active spin needs to be completed
+            if (activeSpinCellID.x !== -1 && activeSpinCellID.y !== -1) {
+                if (uniforms.u_time.value >= spinCompletionTime) {
+                    // Spin has completed, reset hover state for the shader
+                    uniforms.u_mouse_cell_id.value.set(-1, -1);
+                    uniforms.u_hover_start_time.value = -1.0;
+                    
+                    // Clear JavaScript's internal spin state
+                    activeSpinCellID.set(-1, -1); 
+                    spinCompletionTime = -1.0;
+                }
+            }
+
             renderer.render(scene, camera);
         }
 
@@ -341,6 +411,117 @@
             
             renderer.setSize(containerRect.width, containerRect.height);
             uniforms.u_resolution.value.set(containerRect.width, containerRect.height);
+        }
+
+        function onMouseMove(event) {
+            const container = document.getElementById('container');
+            const containerRect = container.getBoundingClientRect();
+
+            // Calculate mouse position relative to the canvas
+            const mouseX = event.clientX - containerRect.left;
+            const mouseY = event.clientY - containerRect.top;
+
+            // Get number of columns from the shader logic (replicated for JS side)
+            function getNumColumnsJS(width) {
+                if (width < 480.0) {
+                    return 3;
+                } else if (width < 600.0) {
+                    return 4;
+                } else if (width < 768.0) {
+                    return 5;
+                } else if (width < 1024.0) {
+                    return 6;
+                } else if (width < 1280.0) {
+                    return 7;
+                } else {
+                    return 8;
+                }
+            }
+
+            const num_cols_to_display = getNumColumnsJS(containerRect.width);
+            const cell_pixel_width = containerRect.width / num_cols_to_display;
+            const cell_pixel_height = cell_pixel_width; // Lines are square
+
+            const num_rows_to_display = Math.floor(containerRect.height / cell_pixel_height);
+
+            const grid_total_pixel_width = num_cols_to_display * cell_pixel_width;
+            const grid_total_pixel_height = num_rows_to_display * cell_pixel_height;
+
+            const offset_x_pixels = (containerRect.width - grid_total_pixel_width) * 0.5;
+            const offset_y_pixels = (containerRect.height - grid_total_pixel_height) * 0.5;
+
+            // Calculate mouse position relative to the centered grid
+            const mouseX_in_grid = mouseX - offset_x_pixels;
+            const mouseY_in_grid = mouseY - offset_y_pixels;
+
+            // Convert mouse position to cell ID
+            const currentCellX = Math.floor(mouseX_in_grid / cell_pixel_width);
+            let currentCellY = Math.floor(mouseY_in_grid / cell_pixel_height);
+
+            // Invert Y-axis for correct mapping (JS top-down to GLSL bottom-up)
+            if (num_rows_to_display > 0) {
+                currentCellY = (num_rows_to_display - 1) - currentCellY;
+            }
+
+            // Check if mouse is within the active grid bounds
+            if (currentCellX >= 0 && currentCellX < num_cols_to_display &&
+                currentCellY >= 0 && currentCellY < num_rows_to_display) {
+                
+                // If the hovered cell has changed, or if there's no active spin (meaning we can start a new one)
+                if (lastHoveredCellID.x !== currentCellX || lastHoveredCellID.y !== currentCellY) {
+                    // Update shader uniforms to trigger the spin for this new cell
+                    uniforms.u_mouse_cell_id.value.set(currentCellX, currentCellY);
+                    uniforms.u_hover_start_time.value = uniforms.u_time.value; 
+                    
+                    // Update JS internal state to track this active spin
+                    activeSpinCellID.set(currentCellX, currentCellY);
+                    spinCompletionTime = uniforms.u_time.value + KICK_DURATION;
+
+                    lastHoveredCellID.set(currentCellX, currentCellY);
+                }
+            } else {
+                // Mouse is outside the active grid.
+                // If the currently spinning cell is NOT the one the mouse just left,
+                // or if there's no active spin, we can safely reset lastHoveredCellID.
+                // The animate loop will handle resetting the shader uniforms when the spin completes.
+                lastHoveredCellID.set(-1, -1);
+            }
+        }
+
+        function onMouseLeave() {
+            // When mouse leaves the canvas, clear lastHoveredCellID.
+            // The animate loop will handle resetting the shader uniforms when the spin completes.
+            lastHoveredCellID.set(-1, -1);
+        }
+
+        // --- Touch Event Handlers ---
+        function onTouchStart(event) {
+            event.preventDefault(); // Prevent default touch behaviors (scrolling, zooming)
+            if (event.touches.length > 0) {
+                const touch = event.touches[0];
+                // Simulate a mousemove event with touch coordinates
+                onMouseMove({
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+            }
+        }
+
+        function onTouchMove(event) {
+            event.preventDefault(); // Prevent default touch behaviors
+            if (event.touches.length > 0) {
+                const touch = event.touches[0];
+                // Simulate a mousemove event with touch coordinates
+                onMouseMove({
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+            }
+        }
+
+        function onTouchEnd(event) {
+            // When touch ends, simulate mouseleave to clear hover state
+            onMouseLeave();
         }
 
         window.addEventListener('resize', onWindowResize);
