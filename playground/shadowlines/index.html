@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Field Pattern</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Mono', monospace;
+            background: #f3f1e5;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Container with 100px margin on all sides */
+        #container {
+            position: absolute;
+            top: 100px;
+            left: 100px;
+            right: 100px;
+            bottom: 100px;
+            width: calc(100vw - 200px);
+            height: calc(100vh - 200px);
+            overflow: hidden;
+        }
+
+        /* Canvas styling to fill the framed container */
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        /* Home icon styling - positioned relative to viewport, not container */
+        .home-icon {
+            position: fixed;
+            top: 55px;
+            left: 65px;
+            z-index: 10;
+            color: rgba(0, 0, 0, 0.5);
+            font-size: 18px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            user-select: none;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .home-icon:hover {
+            opacity: 1.0;
+        }
+
+        .home-icon .material-symbols-outlined {
+            font-variation-settings: 'opsz' 18;
+            font-size: 18px;
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 768px) {
+            #container {
+                top: 80px;
+                left: 80px;
+                right: 80px;
+                bottom: 80px;
+                width: calc(100vw - 160px);
+                height: calc(100vh - 160px);
+            }
+
+            .home-icon {
+                top: 45px;
+                left: 55px;
+                font-size: 16px;
+                width: 40px;
+                height: 40px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #container {
+                top: 60px;
+                left: 60px;
+                right: 60px;
+                bottom: 60px;
+                width: calc(100vw - 120px);
+                height: calc(100vh - 120px);
+            }
+
+            .home-icon {
+                top: 35px;
+                left: 45px;
+                font-size: 14px;
+                width: 36px;
+                height: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Home icon link -->
+    <a href="https://misterdg.com" class="home-icon">
+        <span class="material-symbols-outlined">waving_hand</span>
+    </a>
+
+    <!-- Container with 100px margin frame -->
+    <div id="container"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, material, plane;
+        let uniforms;
+
+        // Configuration for the field pattern
+        const config = {
+            shapeSize: 0.75,
+            flowStrength: 0.6,
+            rotationSpeed: 0.5,
+            speed: 1.2,
+            fieldColor1: { r: 0, g: 0, b: 0 },              // #000000
+            backgroundColor: { r: 0.9529411764705882, g: 0.9450980392156862, b: 0.8980392156862745 }  // #f3f1e5
+        };
+
+        const vertexShader = `
+            void main() {
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        const fragmentShader = `
+            uniform float u_time;
+            uniform vec2 u_resolution;
+            uniform float u_speed;
+            uniform float u_shapeSize;
+            uniform float u_flowStrength;
+            uniform float u_rotationSpeed;
+            uniform vec3 u_fieldColor1;
+            uniform vec3 u_backgroundColor;
+
+            float random(vec2 st) {
+                return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+            }
+
+            // Function to determine the number of columns based on resolution.x
+            // This implements the fixed column approach (min 3, max 8)
+            int getNumColumns(float width) {
+                if (width < 480.0) {
+                    return 3; // Very small screens
+                } else if (width < 600.0) {
+                    return 4; // Small mobile
+                } else if (width < 768.0) {
+                    return 5; // Larger mobile / small tablet
+                } else if (width < 1024.0) {
+                    return 6; // Tablet
+                } else if (width < 1280.0) {
+                    return 7; // Small desktop
+                } else {
+                    return 8; // Larger desktop (max 8 columns)
+                }
+            }
+
+            void main() {
+                // Determine the number of columns based on the current resolution width
+                int num_cols_to_display = getNumColumns(u_resolution.x);
+                
+                // Calculate the actual pixel width of each cell based on the determined columns
+                float cell_pixel_width = u_resolution.x / float(num_cols_to_display);
+                // To maintain square lines, the cell pixel height is the same as width
+                float cell_pixel_height = cell_pixel_width;
+
+                // Calculate the number of rows that can fit while maintaining square cells
+                int num_rows_to_display = int(floor(u_resolution.y / cell_pixel_height));
+
+                // Calculate the total pixel dimensions that the grid will occupy
+                float grid_total_pixel_width = float(num_cols_to_display) * cell_pixel_width;
+                float grid_total_pixel_height = float(num_rows_to_display) * cell_pixel_height;
+
+                // Calculate the pixel offsets to center this grid
+                float offset_x_pixels = (u_resolution.x - grid_total_pixel_width) * 0.5;
+                float offset_y_pixels = (u_resolution.y - grid_total_pixel_height) * 0.5;
+
+                // Get fragment coordinate relative to the top-left of the centered grid
+                vec2 pixel_coord_in_grid = gl_FragCoord.xy - vec2(offset_x_pixels, offset_y_pixels);
+
+                // Convert to float cell coordinates (e.g., 0.0 to num_cols_to_display for x)
+                vec2 cell_coords_float = pixel_coord_in_grid / vec2(cell_pixel_width, cell_pixel_height);
+                
+                // Get integer cell ID (0-indexed, from top-left of the visible grid)
+                vec2 cellID = floor(cell_coords_float);
+                
+                // Calculate cell UV within its own cell (from -0.5 to 0.5)
+                vec2 cellUV = fract(cell_coords_float) - 0.5; 
+
+                // Clipping: If the fragment's cellID is outside the bounds of the displayed grid, render background
+                if (cellID.x < 0.0 || cellID.x >= float(num_cols_to_display) || 
+                    cellID.y < 0.0 || cellID.y >= float(num_rows_to_display)) {
+                    gl_FragColor = vec4(u_backgroundColor, 1.0); 
+                    return; // Exit early if outside visible bounds
+                }
+
+                // Generate per-cell randomness
+                float cellRandom = random(cellID);
+                
+                // Calculate flow field direction (using original uv for global consistency)
+                float t = u_time * u_speed;
+                vec2 flowPos = gl_FragCoord.xy / u_resolution.xy + vec2(sin(t * 0.3), cos(t * 0.4)) * 0.08;
+                float flowAngle = sin(flowPos.x * u_flowStrength + t * u_rotationSpeed) * cos(flowPos.y * u_flowStrength + t * u_rotationSpeed * 0.7) * 3.14159;
+                
+                // Add per-cell variation to flow angle
+                flowAngle += sin(cellRandom * 100.0 + t * u_rotationSpeed) * 0.8;
+                
+                // Rotate cell coordinates based on flow angle
+                float cosA = cos(flowAngle);
+                float sinA = sin(flowAngle);
+                vec2 rotatedUV = vec2(
+                    cellUV.x * cosA - cellUV.y * sinA,
+                    cellUV.x * sinA + cellUV.y * cosA
+                );
+                
+                // Lines shape (shapeType == 0) with very tight anti-aliasing
+                vec2 lineUV = abs(rotatedUV);
+
+                // Use a very small fixed epsilon for smoothstep range to reduce visible "gradient" border
+                float epsilon_smooth = 0.005; 
+                
+                float mainLineShape = 1.0 - smoothstep(0.1 - epsilon_smooth, 0.1 + epsilon_smooth, lineUV.y);
+                mainLineShape *= 1.0 - smoothstep(u_shapeSize * 0.4 - epsilon_smooth, u_shapeSize * 0.4 + epsilon_smooth, lineUV.x);
+                
+                // --- Shadow Calculation ---
+                // Define shadow offset in pixels (0 horizontal, 20 vertical for increased gap and directly below)
+                vec2 shadow_offset_pixels = vec2(10.0, -20.0); 
+
+                // Get fragment coordinate relative to the top-left of the centered grid for shadow
+                vec2 shadow_pixel_coord_in_grid = gl_FragCoord.xy - vec2(offset_x_pixels, offset_y_pixels) - shadow_offset_pixels;
+
+                // Convert to float cell coordinates for shadow
+                vec2 shadow_cell_coords_float = shadow_pixel_coord_in_grid / vec2(cell_pixel_width, cell_pixel_height);
+                
+                // Get integer cell ID for shadow (used for randomness, but clipping is based on main grid)
+                vec2 shadow_cellID = floor(shadow_cell_coords_float);
+                
+                // Calculate cell UV within its own cell for shadow
+                vec2 shadow_cellUV = fract(shadow_cell_coords_float) - 0.5; 
+
+                // Generate per-cell randomness for shadow (based on shadow_cellID for consistency)
+                float shadowCellRandom = random(shadow_cellID);
+
+                // Calculate flow angle for shadow (using original uv for global consistency)
+                vec2 shadowFlowPos = gl_FragCoord.xy / u_resolution.xy + vec2(sin(t * 0.3), cos(t * 0.4)) * 0.08;
+                float shadowFlowAngle = sin(shadowFlowPos.x * u_flowStrength + t * u_rotationSpeed) * cos(shadowFlowPos.y * u_flowStrength + t * u_rotationSpeed * 0.7) * 3.14159;
+                shadowFlowAngle += sin(shadowCellRandom * 100.0 + t * u_rotationSpeed) * 0.8;
+
+                // Rotate shadow cell coordinates
+                vec2 rotatedShadowUV = vec2(
+                    shadow_cellUV.x * cos(shadowFlowAngle) - shadow_cellUV.y * sin(shadowFlowAngle),
+                    shadow_cellUV.x * sin(shadowFlowAngle) + shadow_cellUV.y * cos(shadowFlowAngle)
+                );
+
+                vec2 shadowLineUV = abs(rotatedShadowUV);
+
+                // Use a slightly larger epsilon for shadow smoothness
+                float epsilon_smooth_shadow = 0.025; 
+                
+                // Scale factor for the shadow line size (e.g., 0.8 makes it 80% of main line size)
+                float shadow_size_scale = 0.7;
+
+                float shadowShape = 1.0 - smoothstep(0.1 - epsilon_smooth_shadow, 0.1 + epsilon_smooth_shadow, shadowLineUV.y / shadow_size_scale);
+                shadowShape *= 1.0 - smoothstep(u_shapeSize * 0.4 - epsilon_smooth_shadow, u_shapeSize * 0.4 + epsilon_smooth_shadow, shadowLineUV.x / shadow_size_scale);
+
+                // Shadow color: a darker version of the background color
+                vec3 shadow_base_color = u_backgroundColor * 0.9; 
+                float shadow_opacity = 0.5; // Increased opacity for visibility
+
+                // Mix shadow color with background based on shadow shape and opacity
+                vec3 blended_shadow_color = mix(u_backgroundColor, shadow_base_color, shadowShape * shadow_opacity);
+
+                // Final color composition: draw shadow first, then main line on top
+                vec3 finalColor = mix(blended_shadow_color, u_fieldColor1, mainLineShape);
+                
+                gl_FragColor = vec4(finalColor, 1.0);
+            }
+        `;
+
+        function init() {
+            const container = document.getElementById('container');
+            const containerRect = container.getBoundingClientRect();
+            
+            scene = new THREE.Scene();
+            camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(containerRect.width, containerRect.height);
+            container.appendChild(renderer.domElement);
+
+            uniforms = {
+                u_time: { value: 0 },
+                u_resolution: { value: new THREE.Vector2(containerRect.width, containerRect.height) },
+                u_speed: { value: config.speed },
+                u_shapeSize: { value: config.shapeSize },
+                u_flowStrength: { value: config.flowStrength },
+                u_rotationSpeed: { value: config.rotationSpeed },
+                u_fieldColor1: { value: new THREE.Vector3(config.fieldColor1.r, config.fieldColor1.g, config.fieldColor1.b) },
+                u_backgroundColor: { value: new THREE.Vector3(config.backgroundColor.r, config.backgroundColor.g, config.backgroundColor.b) }
+            };
+
+            material = new THREE.ShaderMaterial({
+                uniforms: uniforms,
+                vertexShader: vertexShader,
+                fragmentShader: fragmentShader
+            });
+
+            const geometry = new THREE.PlaneGeometry(2, 2);
+            plane = new THREE.Mesh(geometry, material);
+            scene.add(plane);
+
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            uniforms.u_time.value += 0.016;
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('container');
+            const containerRect = container.getBoundingClientRect();
+            
+            renderer.setSize(containerRect.width, containerRect.height);
+            uniforms.u_resolution.value.set(containerRect.width, containerRect.height);
+        }
+
+        window.addEventListener('resize', onWindowResize);
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
