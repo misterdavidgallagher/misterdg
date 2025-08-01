@@ -156,10 +156,6 @@
             opacity: 0; /* For fade out effect */
         }
 
-        .centered-image.fading {
-            opacity: 0; /* For fade out effect */
-        }
-
         /* Responsive adjustments for smaller screens */
         @media (max-width: 768px) {
             .home-icon {
@@ -172,11 +168,6 @@
             
             .navigation {
                 bottom: 80px;
-            }
-            
-            .centered-image {
-                max-width: 70vw;
-                max-height: 45vh;
             }
         }
 
@@ -208,42 +199,10 @@
                 width: 3px;
                 height: 3px;
             }
-            
-            .centered-image {
-                max-width: 80vw;
-                max-height: 40vh;
-            }
-        }
-
-        /* Centered image styling */
-        .centered-image {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 5;
-            opacity: 0.5;
-            pointer-events: none;
-            max-width: 60vw;
-            max-height: 50vh;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-            /* animation: opacityPulse 3s ease-in-out infinite; */
-            transition: opacity 1s ease;
-        }
-
-        @keyframes opacityPulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 0.75; }
-            100% { opacity: 0.5; }
         }
     </style>
 </head>
 <body>
-    <!-- Centered image -->
-    <img src="input/01.png" alt="Liam Gallagher" class="centered-image" id="centeredImage">
-
     <!-- Home icon link -->
     <a href="https://misterdg.com" class="home-icon">
         <span class="material-symbols-outlined">waving_hand</span>
@@ -827,9 +786,6 @@
         function animateToExperiment(targetExperiment) {
             if (isTransitioning) return; // Prevent new transitions if one is already active
             isTransitioning = true;
-            
-            // Capture the target experiment index for use in setTimeout callbacks
-            const targetExperimentIndex = currentExperimentIndex;
 
             const duration = 2000; // Transition duration in milliseconds
             const startTime = Date.now(); // Time when the animation starts
@@ -967,46 +923,6 @@
                 navTitle.textContent = targetExperiment.name;
                 navTitle.classList.remove('fading');
             }, duration / 2); // Change text halfway through the fade
-
-            // Animate image fade
-            const centeredImage = document.getElementById('centeredImage');
-            console.log('Starting image fade transition...');
-            console.log('Image element found:', !!centeredImage);
-            if (centeredImage) {
-                console.log('Current image src:', centeredImage.src);
-                console.log('Current image classes:', centeredImage.className);
-                console.log('Target experiment index:', targetExperimentIndex);
-                console.log('Adding fading class to image');
-                centeredImage.classList.add('fading');
-                console.log('Image classes after adding fading:', centeredImage.className);
-                
-                // Log computed opacity values for debugging
-                const computedStyle = window.getComputedStyle(centeredImage);
-                console.log('Computed opacity after adding fading:', computedStyle.opacity);
-                console.log('Computed transition:', computedStyle.transition);
-            }
-            setTimeout(() => {
-                if (centeredImage) {
-                    // Map experiment index to image number (01.png, 02.png, 03.png, 04.png)
-                    const imageNumber = String(targetExperimentIndex + 1).padStart(2, '0');
-                    const newImageSrc = `input/${imageNumber}.png`;
-                    console.log('Changing image src to:', newImageSrc);
-                    centeredImage.src = newImageSrc;
-                    
-                    // Small delay before removing fading class to ensure smooth transition
-                    setTimeout(() => {
-                        console.log('Removing fading class from image');
-                        centeredImage.classList.remove('fading');
-                        console.log('Image classes after removing fading:', centeredImage.className);
-                        
-                        // Log computed opacity after removing fading class
-                        const computedStyleAfter = window.getComputedStyle(centeredImage);
-                        console.log('Computed opacity after removing fading:', computedStyleAfter.opacity);
-                    }, 50); // Small delay to ensure image loads before fade-in starts
-                } else {
-                    console.error('centeredImage not found in setTimeout callback');
-                }
-            }, duration / 2); // Change image halfway through the fade
         }
 
         // Main animation loop for the shader
@@ -1117,11 +1033,6 @@
             if (experiments.length > 0) {
                 applyExperiment(experiments[currentExperimentIndex], false); // No animation on initial load
                 document.getElementById('navTitle').textContent = experiments[currentExperimentIndex].name;
-                
-                // Set initial image
-                const imageNumber = String(currentExperimentIndex + 1).padStart(2, '0');
-                document.getElementById('centeredImage').src = `input/${imageNumber}.png`;
-                
                 createPaginationDots(); // Create pagination dots
             } else {
                 console.error("No experiments loaded. Cannot initialize shader.");
