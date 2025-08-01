@@ -989,7 +989,7 @@
                 if (centeredImage) {
                     // Map experiment index to image number (01.png, 02.png, 03.png, 04.png)
                     const imageNumber = String(targetExperimentIndex + 1).padStart(2, '0');
-                    const newImageSrc = `/input/${imageNumber}.png`;
+                    const newImageSrc = `input/${imageNumber}.png`;
                     console.log('Changing image src to:', newImageSrc);
                     centeredImage.src = newImageSrc;
                     
@@ -1120,7 +1120,7 @@
                 
                 // Set initial image
                 const imageNumber = String(currentExperimentIndex + 1).padStart(2, '0');
-                document.getElementById('centeredImage').src = `/input/${imageNumber}.png`;
+                document.getElementById('centeredImage').src = `input/${imageNumber}.png`;
                 
                 createPaginationDots(); // Create pagination dots
             } else {
