@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Photos Gallery (Picker API)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+            background: white;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #1a73e8;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .auth-section {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin: 10px;
+        }
+
+        button:hover {
+            background: #1557b0;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .picker-button {
+            background: #34a853;
+        }
+
+        .picker-button:hover {
+            background: #2d8e47;
+        }
+
+        #signOutButton {
+            background: #ea4335;
+        }
+
+        #signOutButton:hover {
+            background: #c5221f;
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .info-box {
+            background: #e8f0fe;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #1a73e8;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 16px;
+            padding: 20px 0;
+        }
+
+        .photo-item {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            background: white;
+        }
+
+        .photo-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .error {
+            background: #fdecea;
+            color: #c5221f;
+            padding: 16px;
+            border-radius: 4px;
+            margin: 20px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>My Google Photos</h1>
+        <p class="subtitle">Select photos from your Google Photos library</p>
+    </header>
+
+    <div class="container">
+        <div id="authSection" class="auth-section">
+            <h2>Connect to Google Photos</h2>
+            <p style="margin: 20px 0; color: #666;">Sign in to select photos from your library</p>
+            <button id="signInButton">Sign in with Google</button>
+        </div>
+
+        <div id="gallerySection" style="display: none;">
+            <div class="controls">
+                <button id="signOutButton">Sign Out</button>
+                <button id="pickPhotosButton" class="picker-button">Select Photos from Google Photos</button>
+                <div class="info-box" style="margin-top: 20px; text-align: left;">
+                    <strong>How it works:</strong> Due to Google Photos API changes (effective March 2025), you'll select specific photos using Google's picker. Click "Select Photos from Google Photos" to choose which photos to display in your gallery.
+                </div>
+            </div>
+            <div id="error" class="error"></div>
+            <div id="loading" class="loading" style="display: none;">Loading photos...</div>
+            <div id="photoGrid" class="photo-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        /*
+         * SECURITY NOTE: The Client ID below is safe to expose publicly.
+         * OAuth 2.0 Client IDs are designed to be public identifiers for your application.
+         * The Client Secret (which we don't use in client-side apps) is what must be kept private.
+         * See: https://developers.google.com/identity/protocols/oauth2#installed
+         */
+        const CLIENT_ID = '483649902660-t35e97ducaepobo50fsmb7rpmkb4qn4u.apps.googleusercontent.com';
+        const SCOPES = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly';
+
+        let accessToken = null;
+        let currentSessionId = null;
+        const blobUrls = []; // Track blob URLs for cleanup
+
+        // Cleanup function to revoke blob URLs and prevent memory leaks
+        function cleanupBlobUrls() {
+            blobUrls.forEach(url => URL.revokeObjectURL(url));
+            blobUrls.length = 0;
+        }
+
+        // Validate that URLs are from Google domains only
+        function isValidGoogleUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.hostname.endsWith('.googleusercontent.com') ||
+                       urlObj.hostname.endsWith('.google.com') ||
+                       urlObj.hostname === 'photospicker.googleapis.com';
+            } catch {
+                return false;
+            }
+        }
+
+        // Load Google Identity Services library
+        function loadGoogleAPI() {
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+        }
+
+        async function handleAuthResponse(response) {
+            console.log('Auth response:', response);
+
+            if (response.error) {
+                console.error('Auth error:', response.error);
+                showError(`Authentication failed: ${response.error}`);
+                return;
+            }
+
+            if (response.access_token) {
+                accessToken = response.access_token;
+                console.log('Authentication successful');
+
+                document.getElementById('authSection').style.display = 'none';
+                document.getElementById('gallerySection').style.display = 'block';
+            } else {
+                console.error('Auth response:', response);
+                showError('Failed to sign in. Please try again.');
+            }
+        }
+
+        document.getElementById('signInButton').addEventListener('click', () => {
+            const tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                prompt: 'consent',
+                callback: handleAuthResponse
+            });
+            tokenClient.requestAccessToken({ prompt: 'consent' });
+        });
+
+        document.getElementById('signOutButton').addEventListener('click', () => {
+            if (accessToken) {
+                google.accounts.oauth2.revoke(accessToken, () => {
+                    console.log('Access revoked');
+                });
+            }
+            accessToken = null;
+            currentSessionId = null;
+            cleanupBlobUrls(); // Clean up blob URLs
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('gallerySection').style.display = 'none';
+            document.getElementById('photoGrid').innerHTML = '';
+        });
+
+        document.getElementById('pickPhotosButton').addEventListener('click', async () => {
+            if (!accessToken) {
+                showError('Please sign in first');
+                return;
+            }
+
+            try {
+                // Create a picker session
+                const sessionResponse = await fetch('https://photospicker.googleapis.com/v1/sessions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+
+                if (!sessionResponse.ok) {
+                    const errorData = await sessionResponse.json().catch(() => ({}));
+                    console.error('Session creation error:', errorData);
+                    throw new Error(`Failed to create picker session: ${sessionResponse.status}`);
+                }
+
+                const sessionData = await sessionResponse.json();
+                console.log('Session created:', sessionData);
+                currentSessionId = sessionData.id;
+
+                // Validate pickerUri before opening
+                if (!sessionData.pickerUri || !isValidGoogleUrl(sessionData.pickerUri)) {
+                    throw new Error('Invalid picker URI received from API');
+                }
+
+                // Open the picker in a new window
+                const pickerUrl = `${sessionData.pickerUri}/autoclose`;
+                const pickerWindow = window.open(pickerUrl, 'photoPicker', 'width=800,height=600,noopener,noreferrer');
+
+                // Poll for completion
+                showLoading(true);
+                await pollSession(sessionData.id, pickerWindow);
+
+            } catch (error) {
+                console.error('Error creating picker session:', error);
+                showError(`Failed to open photo picker: ${error.message}`);
+            }
+        });
+
+        async function pollSession(sessionId, pickerWindow) {
+            const maxAttempts = 120; // 10 minutes
+            let attempts = 0;
+
+            const poll = async () => {
+                console.log(`Polling session (attempt ${attempts + 1}/${maxAttempts})...`);
+
+                if (attempts >= maxAttempts) {
+                    showLoading(false);
+                    showError('Photo selection timed out. Please try again.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`https://photospicker.googleapis.com/v1/sessions/${sessionId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        console.error('Polling error response:', errorData);
+                        throw new Error(`Session polling failed: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    console.log('Session status:', JSON.stringify(data, null, 2));
+                    console.log('  - mediaItemsSet:', data.mediaItemsSet);
+                    console.log('  - pickerUri:', data.pickerUri);
+
+                    // Check if window was closed
+                    const windowClosed = pickerWindow && pickerWindow.closed;
+                    console.log('  - Picker window closed?', windowClosed);
+
+                    if (windowClosed) {
+                        if (data.mediaItemsSet) {
+                            console.log('Window closed AND mediaItemsSet = true, loading photos...');
+                            await loadSelectedPhotos(sessionId);
+                        } else {
+                            console.log('Window closed but mediaItemsSet = false, user cancelled');
+                            showLoading(false);
+                            showError('Photo selection cancelled.');
+                        }
+                        return;
+                    }
+
+                    if (data.mediaItemsSet) {
+                        console.log('mediaItemsSet = true, loading photos...');
+                        await loadSelectedPhotos(sessionId);
+                        if (pickerWindow && !pickerWindow.closed) {
+                            console.log('Closing picker window...');
+                            pickerWindow.close();
+                        }
+                        return;
+                    }
+
+                    attempts++;
+                    console.log('mediaItemsSet = false, continuing to poll...');
+                    setTimeout(poll, 5000); // Poll every 5 seconds
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    showLoading(false);
+                    showError(`Error checking selection status: ${error.message}`);
+                }
+            };
+
+            poll();
+        }
+
+        async function loadSelectedPhotos(sessionId) {
+            try {
+                const response = await fetch(`https://photospicker.googleapis.com/v1/mediaItems?sessionId=${sessionId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Media items error:', errorData);
+                    throw new Error(`Failed to load photos: ${response.status} - ${JSON.stringify(errorData)}`);
+                }
+
+                const data = await response.json();
+                console.log('Full API response:', JSON.stringify(data, null, 2));
+                console.log('Media items array:', data.mediaItems);
+                console.log('Number of items:', data.mediaItems ? data.mediaItems.length : 0);
+
+                if (data.mediaItems && data.mediaItems.length > 0) {
+                    console.log('First item structure:', JSON.stringify(data.mediaItems[0], null, 2));
+                    displayPhotos(data.mediaItems);
+                } else {
+                    showError('No photos were selected.');
+                }
+            } catch (error) {
+                console.error('Error loading selected photos:', error);
+                showError(`Failed to load photos: ${error.message}`);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function displayPhotos(mediaItems) {
+            console.log('displayPhotos called with', mediaItems.length, 'items');
+            const photoGrid = document.getElementById('photoGrid');
+            photoGrid.innerHTML = ''; // Clear existing photos
+
+            // Clean up old blob URLs before creating new ones
+            cleanupBlobUrls();
+
+            let addedCount = 0;
+
+            for (const [index, item] of mediaItems.entries()) {
+                console.log(`Item ${index}:`, item);
+
+                if (item.mediaFile && item.mediaFile.mimeType && item.mediaFile.mimeType.startsWith('image/')) {
+                    // Validate that the URL is from Google
+                    if (!isValidGoogleUrl(item.mediaFile.baseUrl)) {
+                        console.warn(`Skipping item ${index}: URL not from Google domain`);
+                        continue;
+                    }
+
+                    console.log(`  -> Adding item ${index} to grid`);
+                    const photoItem = document.createElement('div');
+                    photoItem.className = 'photo-item';
+
+                    const img = document.createElement('img');
+                    img.alt = item.mediaFile.filename || 'Photo';
+
+                    // Fetch the image with authentication and convert to blob URL
+                    try {
+                        console.log(`Fetching image ${index} from:`, item.mediaFile.baseUrl);
+                        const imageResponse = await fetch(item.mediaFile.baseUrl, {
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`
+                            }
+                        });
+
+                        if (imageResponse.ok) {
+                            const blob = await imageResponse.blob();
+                            const blobUrl = URL.createObjectURL(blob);
+                            blobUrls.push(blobUrl); // Track for cleanup
+                            img.src = blobUrl;
+                            console.log(`Successfully loaded image ${index}`);
+                        } else {
+                            console.error(`Failed to fetch image ${index}:`, imageResponse.status);
+                            // Try with size parameters as fallback
+                            img.src = `${item.mediaFile.baseUrl}=w500-h500`;
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching image ${index}:`, error);
+                        // Fallback to direct URL with size parameters
+                        img.src = `${item.mediaFile.baseUrl}=w500-h500`;
+                    }
+
+                    photoItem.addEventListener('click', () => {
+                        // Validate URL before opening
+                        if (isValidGoogleUrl(item.mediaFile.baseUrl)) {
+                            window.open(item.mediaFile.baseUrl, '_blank', 'noopener,noreferrer');
+                        } else {
+                            console.error('Attempted to open invalid URL');
+                        }
+                    });
+
+                    photoItem.appendChild(img);
+                    photoGrid.appendChild(photoItem);
+                    addedCount++;
+                } else {
+                    console.log(`  -> Skipping item ${index} (not an image or missing data)`);
+                }
+            }
+
+            console.log(`Total items added to grid: ${addedCount}`);
+
+            if (photoGrid.children.length === 0) {
+                showError('No valid photos found in selection.');
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 7000);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        window.addEventListener('load', loadGoogleAPI);
+    </script>
+</body>
+</html>
