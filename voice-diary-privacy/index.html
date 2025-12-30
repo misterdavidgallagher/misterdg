@@ -260,12 +260,24 @@
     <div class="contact">
         <p>If you have questions, concerns, or requests regarding this Privacy Policy or your data, please contact us:</p>
         <p>
-            <strong>Email:</strong> misterdavidgallagher@gmail.com<br>
+            <strong>Email:</strong> <a href="#" id="email-link" onclick="revealEmail(); return false;">Click to reveal email</a><br>
             <strong>App:</strong> Voice Diary<br>
             <strong>Developer:</strong> David Gallagher
         </p>
         <p>We will respond to your request within 30 days.</p>
     </div>
+
+    <script>
+        function revealEmail() {
+            var user = 'misterdavidgallagher';
+            var domain = 'gmail.com';
+            var email = user + '@' + domain;
+            var emailLink = document.getElementById('email-link');
+            emailLink.href = 'mailto:' + email;
+            emailLink.textContent = email;
+            emailLink.onclick = null;
+        }
+    </script>
 
     <hr style="margin: 40px 0; border: none; border-top: 1px solid #ddd;">
 
