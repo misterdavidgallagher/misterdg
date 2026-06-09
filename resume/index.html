@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>David Gallagher — Designer</title>
+  <meta name="description" content="David Gallagher — Designer. Over 20 years shaping early-stage ideas and mature products into experiences people trust and deeply connect with. Design leadership across Google, Netflix and the BBC." />
+  <meta name="author" content="David Gallagher" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://misterdg.com/resume" />
+  <meta name="theme-color" content="#fbfaf7" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="David Gallagher — Designer" />
+  <meta property="og:description" content="Design leadership and product strategy across Google, Netflix, BBC and beyond." />
+  <meta property="og:type" content="profile" />
+  <meta property="og:url" content="https://misterdg.com/resume" />
+  <meta property="og:site_name" content="misterdg.com" />
+  <!-- TODO: add a 1200×630 share image at this path for rich link previews -->
+  <meta property="og:image" content="https://misterdg.com/resume/og-image.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="David Gallagher — Designer" />
+  <meta name="twitter:description" content="Design leadership and product strategy across Google, Netflix, BBC and beyond." />
+
+  <!-- Inline monogram favicon (no extra request, no 404) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2314130f'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='16' fill='%23fbfaf7' text-anchor='middle'%3EDG%3C/text%3E%3C/svg%3E" />
+
+  <!-- Structured data — helps search engines, recruiter tools, and AI agents read this as a typed entity -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "David Gallagher",
+    "jobTitle": "Designer",
+    "url": "https://misterdg.com/resume",
+    "description": "Designer and strategic design leader with 20+ years shaping products, brand, and systems across Google, Netflix, and the BBC. Currently focused on AI-native design at Google Photos.",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "San Francisco",
+      "addressRegion": "CA",
+      "addressCountry": "US"
+    },
+    "worksFor": { "@type": "Organization", "name": "Google" },
+    "alumniOf": [
+      { "@type": "CollegeOrUniversity", "name": "University of the West of Scotland" },
+      { "@type": "EducationalOrganization", "name": "Glasgow College of Building & Printing" }
+    ],
+    "knowsAbout": [
+      "Design leadership",
+      "Product strategy",
+      "Design research",
+      "Interaction design",
+      "Visual design",
+      "Motion prototyping",
+      "AI-native design"
+    ],
+    "sameAs": [
+      "https://www.linkedin.com/in/dgallagher"
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --ink:      #14130f;
+      --muted:    #9b988f;
+      --line:     #e7e4dd;
+      --paper:    #fbfaf7;
+      --measure:  60ch;
+      --gutter:   190px;
+      --col-gap:  44px;
+      --section:  52px;   /* gap between sections */
+      --lede:     12px;    /* gap from heading to its content */
+    }
+
+    * { box-sizing: border-box; }
+
+    html { -webkit-text-size-adjust: 100%; }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+      font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+      font-optical-sizing: auto;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    .sheet {
+      max-width: 1060px;
+      margin: 0 auto;
+      padding: clamp(40px, 7vw, 96px) clamp(24px, 6vw, 72px) 120px;
+    }
+
+    /* ---- Shared grid: gutter + 3 content columns ---- */
+    .grid {
+      display: grid;
+      grid-template-columns: var(--gutter) repeat(3, 1fr);
+      column-gap: var(--col-gap);
+    }
+
+    /* ---- Header ---- */
+    .masthead { row-gap: 4px; align-items: start; }
+
+    .identity { grid-column: 1; }
+    .name  { font-size: 1em; font-weight: 600; letter-spacing: -0.012em; margin: 0; line-height: 1.6; }
+    .role  { font-weight: 600; }
+
+    .meta-a { grid-column: 2; }
+    .meta-b { grid-column: 3; }
+    .meta-a, .meta-b { color: var(--muted); font-style: normal; }
+    .meta-b a { color: inherit; text-decoration: none; }
+    .meta-b a:hover { color: var(--ink); }
+
+    .rule {
+      grid-column: 1 / -1;
+      border: 0;
+      border-top: 1px solid var(--line);
+      margin: clamp(36px, 5vw, 56px) 0 clamp(32px, 4vw, 44px);
+    }
+
+    /* ---- Sections ---- */
+    .section { margin-top: var(--section); }
+    .section:first-of-type { margin-top: 0; }
+
+    h2 {
+      grid-column: 2;
+      margin: 0 0 var(--lede);
+      font-size: 1em;
+      font-weight: 600;
+      letter-spacing: -0.006em;
+    }
+
+    /* Heading + its body share one grid row so the heading hangs left if room,
+       but we keep heading on its own line for the editorial look. */
+    .body {
+      grid-column: 2 / span 2;
+      max-width: var(--measure);
+    }
+    .body p { margin: 0 0 1.05em; }
+    .body p:last-child { margin-bottom: 0; }
+
+    /* Expertise + Employment: three content columns */
+    .cols { grid-column: 2 / -1; }
+    .cols {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      column-gap: var(--col-gap);
+      row-gap: 22px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .cols .item .t { display: block; font-size: 1em; }
+    .cols .item .s {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78em;   /* ~11.7px on screen, scales down in print */
+      line-height: 1.38;
+      letter-spacing: 0.002em;
+      margin-top: 3px;
+    }
+
+    /* Selected work */
+    .work { grid-column: 2 / span 2; max-width: var(--measure); }
+    .work .entry { margin-bottom: 26px; }
+    .work .entry:last-child { margin-bottom: 0; }
+    .work h3 {
+      margin: 0 0 4px;
+      font-size: 1em;
+      font-weight: 600;
+      letter-spacing: -0.006em;
+    }
+    .work p { margin: 0; }
+    .work a.src {
+      display: block;
+      width: fit-content;
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      word-break: break-all;
+    }
+    .work a.src:hover { color: var(--ink); }
+
+    .colophon {
+      grid-column: 2 / span 2;
+      max-width: var(--measure);
+    }
+
+    /* ---- Responsive (screen only — print keeps the grid) ---- */
+    @media screen and (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      .identity, .meta-a, .meta-b,
+      h2, .body, .cols, .work, .colophon { grid-column: 1; }
+      .masthead { row-gap: 18px; }
+      .meta-a { margin-top: 4px; }
+      .cols { grid-template-columns: 1fr 1fr; row-gap: 22px; }
+    }
+
+    @media screen and (max-width: 460px) {
+      .cols { grid-template-columns: 1fr; }
+    }
+
+    /* ---- Print / PDF ---- */
+    @page { margin: 15mm 16mm; }
+
+    @media print {
+      :root {
+        --paper:   #fff;
+        --gutter:  150px;
+        --col-gap: 30px;
+        --measure: none;
+        --section: 26px;
+        --lede:    9px;
+      }
+      html, body { background: #fff; }
+      body {
+        font-size: 10.25px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      .sheet { padding: 0; max-width: none; }
+
+      /* Force the editorial grid in print, overriding any narrow-width collapse */
+      .grid { grid-template-columns: var(--gutter) repeat(3, 1fr) !important; }
+      .identity { grid-column: 1 !important; }
+      .meta-a   { grid-column: 2 !important; margin-top: 0 !important; }
+      .meta-b   { grid-column: 3 !important; }
+      h2        { grid-column: 2 !important; }
+      .body, .work, .colophon { grid-column: 2 / span 2 !important; max-width: 64ch; }
+      .cols     { grid-column: 2 / -1 !important; grid-template-columns: repeat(3, 1fr) !important; row-gap: 16px; }
+
+      .rule { margin: 20px 0 18px; }
+      .work .entry { margin-bottom: 18px; }
+      .work a.src { font-size: 9.5px; }
+      .work a.src, .meta-b a { color: var(--muted); }
+
+      /* ---- Pagination control ---- */
+      /* Keep a heading glued to the content that follows it */
+      h2 { break-after: avoid-page; }
+      .masthead { break-after: avoid-page; }
+      /* Never split an indivisible unit across pages */
+      .work .entry, .cols .item { break-inside: avoid; }
+      /* Let long sections flow, but keep first lines with the heading */
+      .section { break-inside: auto; }
+      .body p, .work p, .colophon p { orphans: 3; widows: 3; break-inside: avoid; }
+
+      a { text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+
+    <!-- Masthead -->
+    <header class="grid masthead">
+      <div class="identity">
+        <h1 class="name">David Gallagher</h1>
+        <div class="role">Designer</div>
+      </div>
+      <address class="meta-a">
+        San Francisco,<br />
+        California, USA
+      </address>
+      <address class="meta-b">
+        <!-- Email assembled by JS so the raw address never appears in the static HTML -->
+        <a class="email-link" data-u="misterdavidgallagher" data-d="gmail.com" rel="nofollow">misterdavidgallagher [at] gmail.com</a><br />
+        <a href="https://www.linkedin.com/in/dgallagher" target="_blank" rel="noopener">linkedin.com/in/dgallagher</a>
+      </address>
+    </header>
+
+    <div class="grid"><hr class="rule" /></div>
+
+    <!-- About -->
+    <section class="grid section">
+      <h2>About</h2>
+      <div class="body">
+        <p>I’m a designer, builder, and strategic design leader. Across everything I do, I’m most energized by turning fragile ideas into products, systems, and stories that people deeply connect with.</p>
+        <p>For over 20 years, I’ve helped organizations navigate moments of technological change, shaping early-stage ideas and mature products into experiences people trust and love. My work spans product, brand, and systems design — from crafting Netflix’s custom typeface and interface innovations, to defining early agentic capabilities at Google Assistant, to guiding Google Photos through years of sustained growth and visual evolution.</p>
+        <p>Today, my focus is AI.</p>
+        <p>At Google Photos, I work at the intersection of product strategy, design, and emerging AI capabilities. I design and prototype with generative and agentic systems, increasingly using code as a design medium to explore, communicate, and ship new interaction models enabled by AI.</p>
+        <p>Alongside this work, I lead cross-organizational initiatives focused on AI-native ways of working. I build prototyping frameworks, connect designers to production AI infrastructure, and build systems that help design and product teams develop new skills, practices, and mental models for an AI-first future.</p>
+        <p>Throughout my career, I’ve led teams, built organizations, and helped executives navigate ambiguity by turning complex problems into clear product direction. Today, I apply those same skills to helping teams understand and adapt to one of the most significant technology shifts of our time.</p>
+      </div>
+    </section>
+
+    <!-- Expertise -->
+    <section class="grid section">
+      <h2>Expertise</h2>
+      <ul class="cols">
+        <li class="item"><span class="t">Design leadership</span><span class="t">Product strategy</span></li>
+        <li class="item"><span class="t">Design research</span><span class="t">Interaction design</span></li>
+        <li class="item"><span class="t">Visual design</span><span class="t">Motion prototyping</span></li>
+      </ul>
+    </section>
+
+    <!-- Employment -->
+    <section class="grid section">
+      <h2>Employment</h2>
+      <ul class="cols">
+        <li class="item"><span class="t">Google — Designer</span><span class="s">San Francisco. Current position</span></li>
+        <li class="item"><span class="t">Google — Design Manager</span><span class="s">San Francisco. Apr 22 to Dec 25 · Google Photos</span></li>
+        <li class="item"><span class="t">Google — Design Manager</span><span class="s">San Francisco. Apr 19 to Apr 22 · Google Assistant</span></li>
+
+        <li class="item"><span class="t">Netflix — Design Lead</span><span class="s">Los Gatos. Oct 15 to Feb 19</span></li>
+        <li class="item"><span class="t">BBC — Creative Director</span><span class="s">Manchester. Oct 12 to Sep 15</span></li>
+        <li class="item"><span class="t">Sky — Senior Interaction Designer</span><span class="s">London. Jul 12 to Oct 12</span></li>
+
+        <li class="item"><span class="t">Intel — Principal Interaction Designer</span><span class="s">London. Sep 11 to Jul 12</span></li>
+        <li class="item"><span class="t">BBC — Senior UX Designer</span><span class="s">London. Dec 09 to Sep 11</span></li>
+        <li class="item"><span class="t">STV — Senior UX Designer</span><span class="s">Glasgow. Jun 08 to Dec 09</span></li>
+
+        <li class="item"><span class="t">Become Interactive — Senior Designer</span><span class="s">Glasgow. Jun 06 to Jun 08</span></li>
+        <li class="item"><span class="t">John Semple Travel — Designer</span><span class="s">Jun 03 to Jun 06</span></li>
+      </ul>
+    </section>
+
+    <!-- Selected work -->
+    <section class="grid section">
+      <h2>Selected Work</h2>
+      <div class="work">
+        <div class="entry">
+          <h3>Designing Trust at Scale — Leading Growth at Google Photos</h3>
+          <p>Led growth design at Google Photos, managing backup, storage, onboarding, and visual evolution. Guided the transition to Material 3 Expressive, aligning teams and execs around a clearer, more emotionally resonant product — contributing to sustained, multi-year growth and elevated user trust.</p>
+          <a class="src" href="https://blog.google/products-and-platforms/platforms/android/material-3-expressive-android-wearos-launch/" target="_blank" rel="noopener">blog.google/products-and-platforms/platforms/android/material-3-expressive-android-wearos-launch</a>
+        </div>
+
+        <div class="entry">
+          <h3>Reframing Productivity as Emotional Clarity — Not Just Tasks</h3>
+          <p>At Google Assistant, I led a team exploring AI-powered delegation, memory, and proactive coordination. We grounded the work in human clarity, shaping a design strategy that influenced cross-functional investments and laid foundations for agentic capabilities like awareness, orchestration, and emotionally intelligent assistance.</p>
+          <a class="src" href="https://blog.google/products-and-platforms/products/assistant/ces-2020-google-assistant/" target="_blank" rel="noopener">blog.google/products-and-platforms/products/assistant/ces-2020-google-assistant</a>
+        </div>
+
+        <div class="entry">
+          <h3>Designing the friction out of Netflix</h3>
+          <p>It’s hard to find something to “partly watch” on Netflix. So, I led a team of four designers who set out to answer ‘How might we make it easier to choose something to watch, when you don’t want to pay attention?’.</p>
+          <a class="src" href="https://medium.com/@misterdavidgallagher/designing-the-friction-out-of-netflix-ba770c186f7d" target="_blank" rel="noopener">medium.com/@misterdavidgallagher/designing-the-friction-out-of-netflix</a>
+          <a class="src" href="https://techcrunch.com/2020/08/18/netflix-test-puts-a-shuffle-play-button-right-on-your-home-screen/" target="_blank" rel="noopener">techcrunch.com/2020/08/18/netflix-test-puts-a-shuffle-play-button-right-on-your-home-screen</a>
+        </div>
+
+        <div class="entry">
+          <h3>Cultivating Empathy to Drive Product Strategy</h3>
+          <p>I traveled across the US, Europe &amp; Asia with my research, product and engineering partners to meet members and cultivate empathy within Netflix. We produced 12 films about innovation opportunities across our web, TV and mobile platforms and brought them to our colleagues in immersive, physical spaces at our Los Gatos HQ.</p>
+          <a class="src" href="https://medium.com/@misterdavidgallagher/cultivating-empathy-to-drive-product-strategy-9e2216d62672" target="_blank" rel="noopener">medium.com/@misterdavidgallagher/cultivating-empathy-to-drive-product-strategy</a>
+        </div>
+
+        <div class="entry">
+          <h3>Designing a Custom Typeface</h3>
+          <p>I was part of the core team who, in collaboration with Dalton Maag, designed Netflix Sans. A contemporary grotesque typeface, inspired by our cinematic heritage and innovation-focussed culture. It’s designed to be legible and space efficient on low-end devices in emerging markets while standing confident on billboards on Hollywood Boulevard.</p>
+          <a class="src" href="https://www.itsnicethat.com/news/netflix-sans-typeface-dalton-maag-graphic-design-210318" target="_blank" rel="noopener">itsnicethat.com/news/netflix-sans-typeface-dalton-maag</a>
+        </div>
+
+        <div class="entry">
+          <h3>Designing a personalized BBC</h3>
+          <p>In 2012, I built and led a team of 8 designers to articulate a future vision of how the BBC could use personalization to serve different content, in different ways for different people. My team’s work was used to begin the technical feasibility of personalization services and inform how the corporation would think about new content architectures. The first step of this multi-part strategy rolled out in 2015.</p>
+          <a class="src" href="https://medium.com/@misterdavidgallagher/designing-a-personalized-bbc-753f7a13dec7" target="_blank" rel="noopener">medium.com/@misterdavidgallagher/designing-a-personalized-bbc</a>
+        </div>
+
+        <div class="entry">
+          <h3>User Centered Design for a Physical Space</h3>
+          <p>In 2014, I led an initiative to transform the 5th floor of the flagship BBC building in Manchester, UK. As Design Director, I built a team who facilitated a deeply user-centered approach to the project and led the interior design of the space. We launched the “Blueroom”, on time and under budget — a space that brings BBC audiences and future technologies to journalists, engineers, designers, product managers and the wider BBC team to inform the content and programs they make.</p>
+          <a class="src" href="https://medium.com/@misterdavidgallagher/ucd-for-a-physical-space-88839c30e4d0" target="_blank" rel="noopener">medium.com/@misterdavidgallagher/ucd-for-a-physical-space</a>
+        </div>
+
+        <div class="entry">
+          <h3>Designing Internet TV for BBC Three</h3>
+          <p>In Summer 2014, I joined a multidisciplinary team from across the BBC to define a strategy and vision that would transform the BBC Three TV channel into an Internet TV service. And in 2015 I built and led a team of 5 designers to design the multi-platform product.</p>
+          <a class="src" href="https://medium.com/@misterdavidgallagher/designing-internet-tv-for-bbc-three-b96222ac06fe" target="_blank" rel="noopener">medium.com/@misterdavidgallagher/designing-internet-tv-for-bbc-three</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Education -->
+    <section class="grid section">
+      <h2>Education</h2>
+      <div class="cols">
+        <div class="item"><span class="t">BSc (Hons) Multimedia Technology</span><span class="s">University of the West of Scotland. 2002 to 2004</span></div>
+        <div class="item"><span class="t">HND Multimedia Technology</span><span class="s">Glasgow College of Building &amp; Printing. 2000 to 2002</span></div>
+        <div class="item"></div>
+      </div>
+    </section>
+
+    <!-- Colophon -->
+    <section class="grid section">
+      <h2>A little more about me</h2>
+      <div class="colophon">
+        <p>I gravitate towards moments big and small that provide an opportunity to reflect on the human journey we’re on together. When I’m not working or looking at a screen, I’m moving my body through the world around me.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Assemble the email at runtime so the raw address never sits in the static HTML.
+    document.querySelectorAll('.email-link').forEach(function (el) {
+      var addr = el.dataset.u + '@' + el.dataset.d;
+      el.textContent = addr;
+      el.setAttribute('href', 'mailto:' + addr);
+    });
+  </script>
+</body>
+</html>
